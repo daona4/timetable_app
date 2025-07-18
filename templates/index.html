@@ -1,0 +1,78 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html>
+<head>
+    <title>Quản lý lịch học MARK1295</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Quản lý lịch học MARK1295</h1>
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <form method="POST">
+        <label>Ngày bắt đầu (YYYY-MM-DD):</label>
+        <input type="text" name="start_date" value="2025-05-20" required><br><br>
+        <label>Deadline (YYYY-MM-DD):</label>
+        <input type="text" name="end_date" value="2025-10-31" required><br><br>
+        <label>Phòng học:</label>
+        <input type="text" name="room" value="TBD"><br><br>
+        <label>Giảng viên:</label>
+        <input type="text" name="teacher" value="TBD" required><br><br>
+        <label>Nhóm sinh viên:</label>
+        <input type="text" name="studentgroup" value="MARK1295_G1"><br><br>
+
+        <h3>Chọn lịch học theo tuần</h3>
+        {% for week, week_name in weeks %}
+        <div>
+            <label>{{ week_name }}:</label>
+            <select name="week_{{ week }}">
+                <option value="2">2 buổi (Thứ 3 + Thứ 5)</option>
+                <option value="1_tue">1 buổi (Thứ 3)</option>
+                <option value="1_thu">1 buổi (Thứ 5)</option>
+            </select>
+        </div>
+        {% endfor %}
+        <br>
+        <button type="submit">Tạo lịch và tải Excel</button>
+    </form>
+</body>
+</html>
