@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, send_file, redirect, url_for
-from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, current_user
 import pandas as pd
 from datetime import datetime, timedelta
 import os
@@ -8,7 +8,7 @@ app = Flask(__name__)
 app.secret_key = 'your-secret-key'  # Thay bằng key bí mật mạnh hơn
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'login'  # Chuyển hướng đến /login khi chưa đăng nhập
 
 # Danh sách ngày nghỉ
 HOLIDAYS = ['2025-09-01', '2025-09-02', '2025-09-16', '2025-10-18']
@@ -76,11 +76,11 @@ def login():
         user_id = request.form['user_id']
         user = User(user_id)
         login_user(user)
-        return redirect('/')
+        return redirect(url_for('index'))
     return '''
     <form method="POST">
         <label>User ID (Tên giảng viên):</label>
-        <input type="text" name="user_id"><br><br>
+        <input type="text" name="user_id" required><br><br>
         <button type="submit">Đăng nhập</button>
     </form>
     '''
@@ -89,7 +89,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect('/login')
+    return redirect(url_for('login'))
 
 @app.route('/', methods=['GET', 'POST'])
 @login_required
@@ -99,12 +99,11 @@ def index():
         start_date = request.form['start_date']
         end_date = request.form['end_date']
         room = request.form['room']
-        teacher = request.form['teacher']
+        teacher = current_user.id  # Lấy teacher từ user_id đã đăng nhập
         studentgroup = request.form['studentgroup']
         selections = {key.split('_')[1]: value for key, value in request.form.items() if key.startswith('week_')}
 
         try:
-            # Kiểm tra và chuyển đổi chuỗi thành datetime
             datetime.strptime(start_date, '%Y-%m-%d')
             datetime.strptime(end_date, '%Y-%m-%d')
         except ValueError:
